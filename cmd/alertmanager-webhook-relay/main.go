@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"go.openviz.dev/alertmanager-webhook-relay/internal/config"
-	"go.openviz.dev/alertmanager-webhook-relay/internal/server"
+	"go.open-pulse.dev/alertmanager-webhook-relay/internal/config"
+	"go.open-pulse.dev/alertmanager-webhook-relay/internal/server"
 )
 
 func main() {

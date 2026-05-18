@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"go.openviz.dev/alertmanager-webhook-relay/internal/config"
-	"go.openviz.dev/alertmanager-webhook-relay/internal/webhook"
+	"go.open-pulse.dev/alertmanager-webhook-relay/internal/config"
+	"go.open-pulse.dev/alertmanager-webhook-relay/internal/webhook"
 )
 
 type fakeSender struct {

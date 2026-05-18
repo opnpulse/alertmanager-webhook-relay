@@ -1,6 +1,6 @@
 SHELL=/bin/bash -o pipefail
 
-GO_PKG              := go.openviz.dev
+GO_PKG              := go.open-pulse.dev
 REPO                := $(notdir $(shell pwd))
 BIN                 := alertmanager-webhook-relay
 IMAGE_NAME          ?= $(BIN)
