@@ -174,7 +174,7 @@ func TestFakeSenderErrorClassificationDoesNotPanic(t *testing.T) {
 func TestWebhookHandlerDedupesSuccessfulTargetOnRetry(t *testing.T) {
 	first := &fakeSender{name: "first", key: "https://example.com/first", statusCode: http.StatusOK}
 	second := &fakeSender{name: "second", key: "https://example.com/second", statusCode: http.StatusBadGateway, response: "boom"}
-	handler := newHandler(config.Config{SendResolved: true, DedupeCacheSize: 16}, []sender{first, second})
+	handler := newHandler(config.Config{SendResolved: true, DedupeCacheSize: 16, DedupeWindow: 30 * time.Minute}, []sender{first, second})
 
 	resp1 := httptest.NewRecorder()
 	handler.ServeHTTP(resp1, httptest.NewRequest(http.MethodPost, "/v1/ingest/webhook", strings.NewReader(validPayload)))
@@ -196,6 +196,31 @@ func TestWebhookHandlerDedupesSuccessfulTargetOnRetry(t *testing.T) {
 	}
 	if second.called != 2 {
 		t.Fatalf("expected failed target to retry, got %d calls", second.called)
+	}
+}
+
+func TestWebhookHandlerRetriesAfterDedupeWindowExpires(t *testing.T) {
+	target := &fakeSender{name: "first", key: "https://example.com/first", statusCode: http.StatusOK}
+	handler := newHandler(config.Config{SendResolved: true, DedupeCacheSize: 16, DedupeWindow: time.Second}, []sender{target})
+
+	resp1 := httptest.NewRecorder()
+	handler.ServeHTTP(resp1, httptest.NewRequest(http.MethodPost, "/v1/ingest/webhook", strings.NewReader(validPayload)))
+	if resp1.Code != http.StatusOK {
+		t.Fatalf("expected first attempt to succeed, got %d", resp1.Code)
+	}
+	if target.called != 1 {
+		t.Fatalf("expected first send, got %d", target.called)
+	}
+
+	time.Sleep(1100 * time.Millisecond)
+
+	resp2 := httptest.NewRecorder()
+	handler.ServeHTTP(resp2, httptest.NewRequest(http.MethodPost, "/v1/ingest/webhook", strings.NewReader(validPayload)))
+	if resp2.Code != http.StatusOK {
+		t.Fatalf("expected second attempt to succeed, got %d", resp2.Code)
+	}
+	if target.called != 2 {
+		t.Fatalf("expected second delivery after dedupe window expiry, got %d calls", target.called)
 	}
 }
 

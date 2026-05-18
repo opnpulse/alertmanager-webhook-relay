@@ -55,24 +55,18 @@ Not included:
 
 Required:
 
-- `WEBHOOK_URLS`
+- `WEBHOOK_URLS` accepts one or more absolute URLs separated by commas or newlines.
 
 Optional:
 
 - `LISTEN_ADDR` default `:8080`
 - `REQUEST_TIMEOUT` default `5s`
 - `SEND_RESOLVED` default `true`
-- `DEDUPE_CACHE_SIZE` default `10000`
+- `DEDUPE_CACHE_SIZE` default `2000`
+- `DEDUPE_WINDOW_SECONDS` default `1800` (30 minutes)
 - `MAX_REQUEST_BODY_BYTES` default `1048576` (1 MiB)
-- `WEBHOOK_URLS_FILE` path to a mounted file containing URLs
-
-`WEBHOOK_URLS` accepts one or more absolute URLs separated by commas or newlines.
-
-`WEBHOOK_URLS_FILE` should contain one or more URLs separated by commas or newlines.
-
-- `WEBHOOK_URL` still works for a single URL
-
-Default namespace for deployment: `monitoring`
+- `WEBHOOK_URL` single URL to send to
+- `WEBHOOK_URLS_FILE` path to a mounted file containing URLs. should contain one or more URLs separated by commas or newlines.
 
 ## Alertmanager Webhook Configuration
 
@@ -80,14 +74,8 @@ Alertmanager should send to the relay service, not to the downstream webhook URL
 
 Default in-cluster URL:
 
-```text
+```bash
 http://alertmanager-webhook-relay.monitoring.svc.cluster.local:8080/v1/ingest/webhook
-```
-
-Same-namespace short form:
-
-```text
-http://alertmanager-webhook-relay:8080/v1/ingest/webhook
 ```
 
 ## Delivery Semantics
@@ -97,9 +85,8 @@ For each incoming Alertmanager payload, the relay:
 - renders one plain text message body
 - attempts delivery to every configured downstream URL
 - remembers successful deliveries per downstream URL using a SHA-512 hash of the original Alertmanager payload
+- expires remembered successful deliveries after `DEDUPE_WINDOW_SECONDS`
 - returns `502` if any downstream target fails
-
-This means a later retry from Alertmanager only re-sends to the targets that did not previously succeed.
 
 ## Commands
 

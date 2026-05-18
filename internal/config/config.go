@@ -9,7 +9,8 @@ import (
 )
 
 const (
-	DefaultDedupeCacheSize           = 10000
+	DefaultDedupeCacheSize           = 2000
+	DefaultDedupeWindowSeconds       = 1800
 	DefaultMaxRequestBodyBytes int64 = 1 << 20
 )
 
@@ -24,6 +25,7 @@ type Config struct {
 	RequestTimeout      time.Duration
 	SendResolved        bool
 	DedupeCacheSize     int
+	DedupeWindow        time.Duration
 	MaxRequestBodyBytes int64
 }
 
@@ -38,6 +40,7 @@ func LoadFromEnv() (Config, error) {
 		RequestTimeout:      defaultRequestTimeout,
 		SendResolved:        true,
 		DedupeCacheSize:     DefaultDedupeCacheSize,
+		DedupeWindow:        time.Duration(DefaultDedupeWindowSeconds) * time.Second,
 		MaxRequestBodyBytes: DefaultMaxRequestBodyBytes,
 	}
 	if raw := strings.TrimSpace(os.Getenv("LISTEN_ADDR")); raw != "" {
@@ -76,6 +79,17 @@ func LoadFromEnv() (Config, error) {
 			return Config{}, fmt.Errorf("DEDUPE_CACHE_SIZE must be positive")
 		}
 		cfg.DedupeCacheSize = size
+	}
+
+	if raw := strings.TrimSpace(os.Getenv("DEDUPE_WINDOW_SECONDS")); raw != "" {
+		seconds, err := strconv.Atoi(raw)
+		if err != nil {
+			return Config{}, fmt.Errorf("invalid DEDUPE_WINDOW_SECONDS: %w", err)
+		}
+		if seconds <= 0 {
+			return Config{}, fmt.Errorf("DEDUPE_WINDOW_SECONDS must be positive")
+		}
+		cfg.DedupeWindow = time.Duration(seconds) * time.Second
 	}
 
 	if raw := strings.TrimSpace(os.Getenv("MAX_REQUEST_BODY_BYTES")); raw != "" {

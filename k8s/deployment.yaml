@@ -29,7 +29,9 @@ spec:
         - name: WEBHOOK_URLS_FILE
           value: /etc/alertmanager-webhook-relay/webhooks/urls
         - name: DEDUPE_CACHE_SIZE
-          value: "10000"
+          value: "2000"
+        - name: DEDUPE_WINDOW_SECONDS
+          value: "1800"
         - name: MAX_REQUEST_BODY_BYTES
           value: "1048576"
         volumeMounts:

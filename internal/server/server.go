@@ -24,7 +24,7 @@ import (
 type relayServer struct {
 	config  config.Config
 	senders []sender
-	dedupe  *lru.Cache[string, struct{}]
+	dedupe  *lru.Cache[string, time.Time]
 	metrics *metrics
 }
 
@@ -89,6 +89,9 @@ func New(cfg config.Config) (http.Handler, error) {
 func newHandler(cfg config.Config, senders []sender) http.Handler {
 	if cfg.MaxRequestBodyBytes <= 0 {
 		cfg.MaxRequestBodyBytes = config.DefaultMaxRequestBodyBytes
+	}
+	if cfg.DedupeWindow <= 0 {
+		cfg.DedupeWindow = time.Duration(config.DefaultDedupeWindowSeconds) * time.Second
 	}
 
 	registerMetricsOnce.Do(func() {
@@ -177,9 +180,12 @@ func (s *relayServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 			defer wg.Done()
 
 			dedupeKey := target.Key() + ":" + payloadHash
-			if _, ok := s.dedupe.Get(dedupeKey); ok {
-				results[i] = deliveryResult{target: target.Name(), deduped: true, succeeded: true}
-				return
+			if sentAt, ok := s.dedupe.Get(dedupeKey); ok {
+				if time.Since(sentAt) < s.config.DedupeWindow {
+					results[i] = deliveryResult{target: target.Name(), deduped: true, succeeded: true}
+					return
+				}
+				s.dedupe.Remove(dedupeKey)
 			}
 
 			start := time.Now()
@@ -192,16 +198,12 @@ func (s *relayServer) handleWebhook(w http.ResponseWriter, r *http.Request) {
 				duration:     duration,
 				err:          err,
 			}
-			if err != nil {
-				results[i] = result
-				return
-			}
-			if result.statusCode < 200 || result.statusCode >= 300 {
+			if err != nil || result.statusCode < 200 || result.statusCode >= 300 {
 				results[i] = result
 				return
 			}
 
-			s.dedupe.Add(dedupeKey, struct{}{})
+			s.dedupe.Add(dedupeKey, time.Now())
 			result.succeeded = true
 			results[i] = result
 		}(i, target)
@@ -268,8 +270,8 @@ func (r deliveryResult) metricResult(requestCtx context.Context) string {
 	return fmt.Sprintf("upstream_http_%d", r.statusCode)
 }
 
-func mustNewDedupe(size int) *lru.Cache[string, struct{}] {
-	cache, err := lru.New[string, struct{}](size)
+func mustNewDedupe(size int) *lru.Cache[string, time.Time] {
+	cache, err := lru.New[string, time.Time](size)
 	if err != nil {
 		panic(err)
 	}
