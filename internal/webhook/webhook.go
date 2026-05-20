@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,6 +86,10 @@ func (s *Sender) Send(ctx context.Context, message Message) (int, string, error)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
+		urlErr := &url.Error{}
+		if errors.As(err, &urlErr) {
+			return 0, "", fmt.Errorf("post to webhook: %w", urlErr.Err)
+		}
 		return 0, "", fmt.Errorf("post to webhook: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
