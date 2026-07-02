@@ -33,3 +33,30 @@ func TestRenderIncludesCoreFields(t *testing.T) {
 		}
 	}
 }
+
+func TestTruncateKeepsUTF8Boundary(t *testing.T) {
+	got := truncate("éx", 2)
+	if got != "é"+"...\n...[TRUNCATED]..." {
+		t.Fatalf("expected UTF-8 safe truncation, got %q", got)
+	}
+	got = truncate("éx", 1)
+	if got != "...\n...[TRUNCATED]..." {
+		t.Fatalf("expected UTF-8 safe truncation, got %q", got)
+	}
+	got = truncate("éx", 0)
+	if got != "" {
+		t.Fatalf("expected UTF-8 safe truncation, got %q", got)
+	}
+	got = truncate("éx", 3)
+	if got != "éx" {
+		t.Fatalf("expected UTF-8 safe truncation, got %q", got)
+	}
+	got = truncate("xéb2", 2)
+	if got != "x"+"...\n...[TRUNCATED]..." {
+		t.Fatalf("expected UTF-8 safe truncation, got %q", got)
+	}
+	got = truncate("xéakkasdkj", 1)
+	if got != "x"+"...\n...[TRUNCATED]..." {
+		t.Fatalf("expected UTF-8 safe truncation, got %q", got)
+	}
+}

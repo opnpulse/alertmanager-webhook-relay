@@ -263,17 +263,20 @@ func firstNonEmpty(values ...string) string {
 }
 
 func truncate(text string, limit int) string {
+	if limit <= 0 {
+		return ""
+	}
+
 	if len(text) <= limit {
 		return text
 	}
 
-	marker := "\n... truncated ..."
-	trimmed := text
+	marker := "...\n...[TRUNCATED]..."
 
-	for len(trimmed)+len(marker) > limit && trimmed != "" {
-		_, size := utf8.DecodeLastRuneInString(trimmed)
-		trimmed = trimmed[:len(trimmed)-size]
+	cutoff := limit
+	for cutoff > 0 && !utf8.RuneStart(text[cutoff]) {
+		cutoff--
 	}
 
-	return strings.TrimRight(trimmed, "\n") + marker
+	return strings.TrimRight(text[:cutoff], "\n") + marker
 }
